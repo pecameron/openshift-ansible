@@ -23,6 +23,10 @@
   - group_by:
       key: oo_nodes_use_{{ (openshift_use_kuryr | default(False)) | ternary('kuryr','nothing') }}
     changed_when: False
+  # Create group for ovn nodes
+  - group_by:
+      key: oo_nodes_use_{{ (openshift_use_ovn | default(False)) | ternary('ovn','nothing') }}
+    changed_when: False
 
 - import_playbook: etcd_client_config.yml
   vars:

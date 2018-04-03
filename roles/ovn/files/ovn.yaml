@@ -1,0 +1,159 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: ovn
+  namespace: openshift-sdn
+  annotations:
+    kubernetes.io/description: |
+      This daemon set launches the OpenShift networking components (kube-proxy, DNS, and ovn).
+      It expects that OVS is running on the node.
+    image.openshift.io/triggers: |
+      [
+        {"from":{"kind":"ImageStreamTag","name":"node:v3.10"},"fieldPath":"spec.template.spec.containers[?(@.name==\"ovn\")].image"}
+      ]
+spec:
+  selector:
+    matchLabels:
+      app: ovn
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: ovn
+        component: network
+        type: infra
+        openshift.io/component: network
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+    spec:
+      # Requires fairly broad permissions - ability to read all services and network functions as well
+      # as all pods.
+      serviceAccountName: ovn
+      hostNetwork: true
+      containers:
+      # The network container launches the openshift-sdn process, the kube-proxy, and the local DNS service.
+      # It relies on an up to date node-config.yaml being present.
+      - name: ovn
+        image: " "
+        command: 
+        - /bin/bash
+        - -c
+        - |
+          #!/bin/bash
+          set -euo pipefail
+          # Take over network functions on the node
+          rm -Rf /etc/cni/net.d/*
+          rm -Rf /host/opt/cni/bin/*
+          cp -Rf /opt/cni/bin/* /host/opt/cni/bin/
+
+          if [[ -f /etc/sysconfig/origin-node ]]; then
+            set -o allexport
+            source /etc/sysconfig/origin-node
+          fi
+
+          # use either the bootstrapped node kubeconfig or the static configuration
+          file=/etc/origin/node/node.kubeconfig
+          if [[ ! -f "${file}" ]]; then
+            # use the static node config if it exists
+            # TODO: remove when static node configuration is no longer supported
+            for f in /etc/origin/node/system*.kubeconfig; do
+              echo "info: Using ${f} for node configuration" 1>&2
+              file="${f}"
+              break
+            done
+          fi
+          # Use the same config as the node, but with the service account token
+          oc config "--config=${file}" view --flatten > /tmp/kubeconfig
+          oc config --config=/tmp/kubeconfig set-credentials sa "--token=$( cat /var/run/secrets/kubernetes.io/serviceaccount/token )"
+          oc config --config=/tmp/kubeconfig set-context "$( oc config --config=/tmp/kubeconfig current-context )" --user=sa
+          # Launch the network process
+          exec openshift start network --config=/etc/origin/node/node-config.yaml --kubeconfig=/tmp/kubeconfig --loglevel=${DEBUG_LOGLEVEL:-2}
+
+        securityContext:
+          runAsUser: 0
+          # Permission could be reduced by selecting an appropriate SELinux policy
+          privileged: true
+
+        volumeMounts:
+        # Directory which contains the host configuration.
+        - mountPath: /etc/origin/node/
+          name: host-config
+          readOnly: true
+        - mountPath: /etc/sysconfig/origin-node
+          name: host-sysconfig-node
+          readOnly: true
+        # Run directories where we need to be able to access sockets
+        - mountPath: /var/run/dbus/
+          name: host-var-run-dbus
+          readOnly: true
+        - mountPath: /var/run/openvswitch/
+          name: host-var-run-ovs
+          readOnly: true
+        - mountPath: /var/run/kubernetes/
+          name: host-var-run-kubernetes
+          readOnly: true
+        # We mount our socket here
+        - mountPath: /var/run/ovn
+          name: host-var-run-ovn
+        # CNI related mounts which we take over
+        - mountPath: /host/opt/cni/bin
+          name: host-opt-cni-bin
+        - mountPath: /etc/cni/net.d
+          name: host-etc-cni-netd
+        - mountPath: /var/lib/cni/networks/ovn
+          name: host-var-lib-cni-networks-ovn
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        env:
+        - name: OPENSHIFT_DNS_DOMAIN
+          value: cluster.local
+        ports:
+        - name: healthz
+          containerPort: 10256
+        livenessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: /healthz
+            port: 10256
+            scheme: HTTP
+        lifecycle:
+
+      volumes:
+      # In bootstrap mode, the host config contains information not easily available
+      # from other locations.
+      - name: host-config
+        hostPath:
+          path: /etc/origin/node
+      - name: host-sysconfig-node
+        hostPath:
+          path: /etc/sysconfig/origin-node
+      - name: host-modules
+        hostPath:
+          path: /lib/modules
+
+      - name: host-var-run-ovs
+        hostPath:
+          path: /var/run/openvswitch
+      - name: host-var-run-kubernetes
+        hostPath:
+          path: /var/run/kubernetes
+      - name: host-var-run-dbus
+        hostPath:
+          path: /var/run/dbus
+      - name: host-var-run-ovn
+        hostPath:
+          path: /var/run/ovn
+
+      - name: host-opt-cni-bin
+        hostPath:
+          path: /opt/cni/bin
+      - name: host-etc-cni-netd
+        hostPath:
+          path: /etc/cni/net.d
+      - name: host-var-lib-cni-networks-ovn
+        hostPath:
+          path: /var/lib/cni/networks/ovn

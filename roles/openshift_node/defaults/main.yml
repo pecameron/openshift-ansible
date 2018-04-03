@@ -165,6 +165,12 @@ default_r_openshift_node_os_firewall_allow:
 - service: Calico BGP Port
   port: 179/tcp
   cond: "{{ openshift_node_use_calico }}"
+- service: ovn-northdb service port
+  port: 6642/tcp
+  cond: "{{ openshift_node_use_ovn }}"
+- service: ovn-southdb service port
+  port: 6641/tcp
+  cond: "{{ openshift_node_use_ovn }}"
 - service: Kubernetes service NodePort TCP
   port: "{{ openshift_node_port_range | default('') }}/tcp"
   cond: "{{ openshift_node_port_range is defined }}"
@@ -225,6 +231,9 @@ openshift_node_use_contiv: "{{ openshift_node_use_contiv_default }}"
 
 openshift_node_use_kuryr_default: "{{ openshift_use_kuryr | default(False) }}"
 openshift_node_use_kuryr: "{{ openshift_node_use_kuryr_default }}"
+
+openshift_node_use_ovn_default: "{{ openshift_use_ovn | default(False) }}"
+openshift_node_use_ovn: "{{ openshift_node_use_ovn_default }}"
 
 openshift_node_data_dir_default: "{{ openshift_data_dir | default('/var/lib/origin') }}"
 openshift_node_data_dir: "{{ openshift_node_data_dir_default }}"
