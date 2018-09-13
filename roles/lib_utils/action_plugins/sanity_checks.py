@@ -15,6 +15,7 @@ NET_PLUGIN_LIST = (('openshift_use_openshift_sdn', True),
                    ('openshift_use_flannel', False),
                    ('openshift_use_nuage', False),
                    ('openshift_use_contiv', False),
+                   ('openshift_use_ovn', False),
                    ('openshift_use_calico', False),
                    ('openshift_use_kuryr', False))
 

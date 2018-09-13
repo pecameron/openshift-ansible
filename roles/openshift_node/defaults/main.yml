@@ -157,6 +157,12 @@ default_r_openshift_node_os_firewall_allow:
 - service: OpenShift OVS sdn
   port: 4789/udp
   cond: openshift_use_openshift_sdn | bool
+- service: OVN northdb
+  port: 6641/tcp
+  cond: "{{ openshift_node_use_ovn }}"
+- service: OVN southdb
+  port: 6642/tcp
+  cond: "{{ openshift_node_use_ovn }}"
 - service: Calico BGP Port
   port: 179/tcp
   cond: "{{ openshift_node_use_calico }}"
@@ -207,6 +213,9 @@ openshift_node_use_openshift_sdn: "{{ openshift_node_use_openshift_sdn_default }
 
 openshift_node_sdn_network_plugin_name_default: "{{ os_sdn_network_plugin_name | default('redhat/openshift-ovs-subnet') }}"
 openshift_node_sdn_network_plugin_name: "{{ openshift_node_sdn_network_plugin_name_default }}"
+
+openshift_node_use_ovn_default: "{{ openshift_use_ovn | default(False) }}"
+openshift_node_use_ovn: "{{ openshift_node_use_ovn_default }}"
 
 openshift_node_use_calico_default: "{{ openshift_use_calico | default(False) }}"
 openshift_node_use_calico: "{{ openshift_node_use_calico_default }}"

@@ -112,6 +112,9 @@ l_openshift_master_oauth_templates: "{{ openshift_master_oauth_templates | defau
 r_openshift_master_use_openshift_sdn_default: "{{ openshift_use_openshift_sdn | default(True) }}"
 r_openshift_master_use_openshift_sdn: "{{ r_openshift_master_use_openshift_sdn_default }}"
 
+r_openshift_master_use_ovn_default: "{{ openshift_use_ovn | default(False) }}"
+r_openshift_master_use_ovn: "{{ r_openshift_master_use_ovn_default }}"
+
 r_openshift_master_use_nuage_default: "{{ openshift_use_nuage | default(False) }}"
 r_openshift_master_use_nuage: "{{ r_openshift_master_use_nuage_default }}"
 

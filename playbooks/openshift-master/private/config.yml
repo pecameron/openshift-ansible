@@ -119,6 +119,8 @@
     when: openshift_use_nuage | default(false) | bool
   - role: nuage_master
     when: openshift_use_nuage | default(false) | bool
+  - role: ovn_master
+    when: openshift_use_ovn | default(false) | bool
   - role: calico_master
     when: openshift_use_calico | default(false) | bool
   tasks:
